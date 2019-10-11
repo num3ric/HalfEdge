@@ -26,7 +26,6 @@
 #include "cinder/TriMesh.h"
 #include "cinder/gl/VboMesh.h"
 
-
 // CSG
 // http://sandervanrossen.blogspot.be/2009/12/realtime-csg-part-1.html
 
@@ -1110,6 +1109,22 @@ void Mesh::triangulate()
 	for( size_t i = 0; i < numFaces; ++i ) {
 		triangulate( mFaces[i].get() );
 	}
+}
+
+ci::AxisAlignedBox Mesh::calcBoundingBox() const
+{
+	glm::vec3 min( FLT_MAX );
+	glm::vec3 max( -FLT_MAX );
+	for( auto& v : mVertices ) {
+		auto pos = v->getPosition();
+		min.x = glm::min( min.x, pos.x );
+		min.y = glm::min( min.y, pos.y );
+		min.z = glm::min( min.z, pos.z );
+		max.x = glm::max( max.x, pos.x );
+		max.y = glm::max( max.y, pos.y );
+		max.z = glm::max( max.z, pos.z );
+	}
+	return AxisAlignedBox( min, max );
 }
 
 

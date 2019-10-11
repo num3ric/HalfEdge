@@ -143,6 +143,8 @@ public:
 	void triangulate( Face* face );
 	//! Triangulate the whole mesh
 	void triangulate();
+
+	ci::AxisAlignedBox calcBoundingBox() const;
 	
 	class Extrusion {
 	public:

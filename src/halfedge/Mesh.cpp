@@ -127,11 +127,13 @@ Mesh::Mesh( const ci::TriMesh &trimesh )
 	}
 	auto trimeshPositions = trimesh.getPositions<3>();
 	std::vector<ci::vec3> positions;
+	mHasTexCoords0 = trimesh.hasTexCoords0();
+	std::vector<ci::vec2> texCoords0;
 	for( int i = 0; i < trimesh.getNumVertices(); ++i ) {
 		positions.push_back( trimeshPositions[i] );
+		if( mHasTexCoords0 ) texCoords0.push_back( trimesh.getTexCoords0<2>()[i] );
 	}
-
-	addFaces( positions, indices );
+	addFaces( positions, indices, texCoords0 );
 }
 
 Mesh::~Mesh()
@@ -213,7 +215,7 @@ void Mesh::copyFrom( const Mesh &mesh )
 }
 
 
-void Mesh::addFaces( const std::vector<ci::vec3> &vertices, const std::vector<std::vector<uint32_t>> &faces )
+void Mesh::addFaces( const std::vector<ci::vec3> &vertices, const std::vector<std::vector<uint32_t>> &faces, const std::vector<glm::vec2>& texCoords0 )
 {
 	// temp structures
 	std::map<Vertex*,uint32_t> verticesDegrees;
@@ -240,7 +242,7 @@ void Mesh::addFaces( const std::vector<ci::vec3> &vertices, const std::vector<st
 			}
 			// otherwise create a new vertex
 			else {
-				Vertex* vertex = makeVertex( vertices[indice] );
+				Vertex* vertex = makeVertex( vertices[indice], texCoords0.empty() ? vec2() : texCoords0[indice] );
 				vertex->halfEdge()		= nullptr;//boundaryMarker.get();
 				verticesDegrees[vertex] = 1;
 				indicesVertices[indice]	= vertex;
@@ -1213,6 +1215,7 @@ bool Mesh::isQuadMesh() const
 ci::gl::VboMeshRef Mesh::createFacesVbo() const
 {
 	std::vector<ci::vec3> vertices;
+	std::vector<ci::vec2> texcoords0;
 	std::vector<ci::vec3> normals;
 	
 	uint16_t numVertices = mVertices.size();
@@ -1227,25 +1230,40 @@ ci::gl::VboMeshRef Mesh::createFacesVbo() const
 			auto c = halfEdge->next()->vertex();
 			indices.push_back( vertices.size() );
 			vertices.push_back( a->getPosition() );
+			if( mHasTexCoords0 ) texcoords0.push_back( a->getTexCoord0() );
 			normals.push_back( normal );
+
 			indices.push_back( vertices.size() );
 			vertices.push_back( b->getPosition() );
+			if( mHasTexCoords0 ) texcoords0.push_back( b->getTexCoord0() );
 			normals.push_back( normal );
+
 			indices.push_back( vertices.size() );
 			vertices.push_back( c->getPosition() );
+			if( mHasTexCoords0 ) texcoords0.push_back( c->getTexCoord0() );
 			normals.push_back( normal );
+
 			b = c;
 			halfEdge = halfEdge->next();
 		} while( halfEdge != face->halfEdge() );
 	}
-		
+	
+	auto indexVbo = ci::gl::Vbo::create( GL_ELEMENT_ARRAY_BUFFER, indices );
+
 	auto bufferLayout0 = ci::geom::BufferLayout( { ci::geom::AttribInfo( ci::geom::Attrib::POSITION, 3, 0, 0 ) } );
 	auto vbo0 = ci::gl::Vbo::create( GL_ARRAY_BUFFER, vertices );
+	
 	auto bufferLayout1 = ci::geom::BufferLayout( { ci::geom::AttribInfo( ci::geom::Attrib::NORMAL, 3, 0, 0 ) } );
 	auto vbo1 = ci::gl::Vbo::create( GL_ARRAY_BUFFER, normals );
-	auto indexVbo = ci::gl::Vbo::create( GL_ELEMENT_ARRAY_BUFFER, indices );
-	
-	return ci::gl::VboMesh::create( vertices.size(), GL_TRIANGLES, { { bufferLayout0, vbo0 }, { bufferLayout1, vbo1 } } );//, indices.size(), GL_UNSIGNED_SHORT, indexVbo );
+
+	if( mHasTexCoords0 ) {
+		auto bufferLayout2 = ci::geom::BufferLayout( { ci::geom::AttribInfo( ci::geom::Attrib::TEX_COORD_0, 2, 0, 0 ) } );
+		auto vbo2 = ci::gl::Vbo::create( GL_ARRAY_BUFFER, texcoords0 );
+		return ci::gl::VboMesh::create( vertices.size(), GL_TRIANGLES, { { bufferLayout0, vbo0 }, { bufferLayout1, vbo1 }, { bufferLayout2, vbo2 } } );
+	}
+	else {
+		return ci::gl::VboMesh::create( vertices.size(), GL_TRIANGLES, { { bufferLayout0, vbo0 }, { bufferLayout1, vbo1 } } );
+	}
 }
 
 
@@ -1354,9 +1372,9 @@ Face* Mesh::makeBoundaryFace()
 	mBoundaryFaces.push_back( std::make_unique<Face>( true ) );
 	return mBoundaryFaces.back().get();
 }
-Vertex* Mesh::makeVertex( const ci::vec3 &position )
+Vertex* Mesh::makeVertex( const ci::vec3 &position, const ci::vec2& texCoord0 )
 {
-	mVertices.push_back( std::make_unique<Vertex>( position ) );
+	mVertices.push_back( std::make_unique<Vertex>( position, texCoord0 ) );
 	return mVertices.back().get();
 }
 

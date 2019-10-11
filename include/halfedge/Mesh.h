@@ -243,14 +243,14 @@ protected:
 	Edge* makeEdge();
 	Face* makeFace();
 	Face* makeBoundaryFace();
-	Vertex* makeVertex( const ci::vec3 &position = ci::vec3( 0.0f ) );
+	Vertex* makeVertex( const ci::vec3 &position = ci::vec3( 0.0f ), const ci::vec2& texCoord0 = ci::vec2() );
 	void eraseHalfEdge( HalfEdge* halfEdge );
 	void eraseEdge( Edge* edge );
 	void eraseFace( Face* face );
 	void eraseBoundaryFace( Face* face );
 	void eraseVertex( Vertex* vertex );
 
-    void addFaces( const std::vector<ci::vec3> &vertices, const std::vector<std::vector<uint32_t>> &faces );
+	void addFaces( const std::vector<ci::vec3>& vertices, const std::vector<std::vector<uint32_t>>& faces, const std::vector<glm::vec2>& texCoords0 = std::vector<glm::vec2>() );
 	void copyFrom( const Mesh &mesh );
 
 	bool calcPlaneIntersection( const HalfEdge* halfEdge, const ci::vec3 &planeOrigin, const ci::vec3 &planeNormal, ci::vec3 *intersection, float *distance );
@@ -262,6 +262,7 @@ protected:
 	FaceVector		mFaces;
 	FaceVector		mBoundaryFaces;
 	VertexVector	mVertices;
+	bool			mHasTexCoords0 = false;
 };
 
 class HalfEdge {
@@ -343,7 +344,7 @@ protected:
 
 class Vertex {
 public:
-	Vertex( const ci::vec3 &position ) : mPosition( position ), mHalfEdge( nullptr ) {}
+	Vertex( const ci::vec3& position, const glm::vec2& texCoord0 = glm::vec2() ) : mPosition( position ), mTexCoord0{ texCoord0 }, mHalfEdge( nullptr ) {}
 
 	//! Returns a HalfEdge associated with this Vertex
 	HalfEdge*&	halfEdge() { return mHalfEdge; }
@@ -353,15 +354,18 @@ public:
 	uint16_t	degree() const;
 	
 	//! Returns the Vertex position
-	ci::vec3	getPosition() const { return mPosition; }
+	const ci::vec3& getPosition() const { return mPosition; }
 	//! Sets the Vertex position
 	void		setPosition( const ci::vec3 &position ) { mPosition = position; }
     
 	//! Checks and returns whether the Vertex connectivity is valid
 	bool isValid() const;
 
+	//! Returns the Vertex texture coordinate 0
+	const ci::vec2&	getTexCoord0() const { return mTexCoord0; }
 protected:
 	ci::vec3	mPosition;
+	glm::vec2	mTexCoord0;
 	HalfEdge*	mHalfEdge;
 };
 
